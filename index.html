@@ -118,7 +118,7 @@
                 While we don't expect to produce fully realistic accumulation with this simulation, like the tree example above, we hope to produce results roughly matching that of the hand-sculpted example.
             </p>
             <p>
-                One ambitious 'aspirational goal' we may pursue is to perform a full physical simulation of snow, following the work of Gissler et al (link). 
+                One ambitious 'aspirational goal' we may pursue is to perform a full physical simulation of snow, following the work of Gissler et al. 
                 Considering the time constraints of the project, this is probably out of our reach. 
                 However, it could leverage the SDF meshing, as the output of Gissler's algorithm is an abstract particle cloud, likely requiring an extra meshing step to enable our visual effects.
             </p>
@@ -175,11 +175,19 @@
                         <li>Snow Mesh Editing:<ul>
                             <li> SDF Definition: <a href="https://en.wikipedia.org/wiki/Signed_distance_function">en.wikipedia.org/wiki/Signed_distance_function</a> </li>
                             <li> Surface Net Meshing Implementation: <a href="https://0fps.net/2012/07/12/smooth-voxel-terrain-part-2/">0fps.net/2012/07/12/smooth-voxel-terrain-part-2/</a> </li>
-                            <li> Houdini Example (Non-SDF): <a href="https://www.velebny.net/houdini_snow_mesh.html">www.velebny.net/houdini_snow_mesh.html</a></li>
+                            <li> Houdini Reference (Non-SDF): <a href="https://www.velebny.net/houdini_snow_mesh.html">www.velebny.net/houdini_snow_mesh.html</a></li>
                         </ul></li>
                         <li>Snow Subsurface Effects:<ul>
                             <li> Paper: <a href="https://graphics.stanford.edu/papers/bssrdf/bssrdf.pdf">graphics.stanford.edu/papers/bssrdf/bssrdf.pdf</a> </li>
                             <li> Breakdown of full snow shader (glint + subsurface): <a href="https://hasenjager.artstation.com/projects/J2wBz">hasenjager.artstation.com/projects/J2wBz</a> </li>
+                        </ul></li>
+                        <li>Triplanar Mapping - Various examples, for Unity:<ul>
+                            <li> Martin Palko: <a href="https://www.martinpalko.com/triplanar-mapping/">www.martinpalko.com/triplanar-mapping/</a> </li>
+                            <li> Ben Golus: <a href="https://bgolus.medium.com/normal-mapping-for-a-triplanar-shader-10bf39dca05a">bgolus.medium.com/normal-mapping-for-a-triplanar-shader-10bf39dca05a</a> </li>
+                            <li> Catlike Coding: <a href="https://catlikecoding.com/unity/tutorials/advanced-rendering/triplanar-mapping/">catlikecoding.com/unity/tutorials/advanced-rendering/triplanar-mapping/</a> </li>
+                        </ul></li>
+                        <li>Snow Physics:<ul>
+                            <li> Gissler et al: <a href="https://cg.informatik.uni-freiburg.de/publications/2020_SIGGRAPH_snow_v1.pdf">cg.informatik.uni-freiburg.de/publications/2020_SIGGRAPH_snow_v1.pdf</a> </li>
                         </ul></li>
                     </ul>
                 <h3>Hardware/Software:</h3>
