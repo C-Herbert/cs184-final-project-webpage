@@ -1,0 +1,208 @@
+<html>
+	<head>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+		<style>
+			h1 {
+				text-align: center;
+			}
+
+			.container {
+				margin: 0 auto;
+				padding: 60px 20%;
+			}
+
+			figure {
+				text-align: center;
+			}
+
+			img {
+				display: inline-block;
+			}
+
+			body {
+				font-family: 'Inter', sans-serif;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+		    <h1>CS184 Spring 2026 Final Project</h1>
+		    <div style="text-align: center;">Names: Allena Oglivie, Charlie Herbert, Jeffrey Fang, Sophia Liu</div>
+
+		    <br>
+		    Link to webpage: <a href="https://c-herbert.github.io/cs184-final-project-webpage/">c-herbert.github.io/cs184-final-project-webpage/</a>
+		    <br>
+		    Link to GitHub repository: <a href="https://github.com/C-Herbert/cs184-final-project-webpage">github.com/C-Herbert/cs184-final-project-webpage</a>
+
+            <h1>Snowfall: Rendering and Accumulation</h1>
+            <h2>Summary:</h2>
+            <div>
+                This project aims to provide tools to replicate the visual and physical properties of realistic snow under a variety of conditions.
+                This includes the specular highlights of soft snow ('glints'), as well as the noticeable subsurface effects of shaded snow. 
+                For the physical aspect of the project, we aim to replicate the accumulation of snow on surfaces.<br> 
+                <h3>Team Members:</h3>
+                Allena Oglivie - Ogfayer@berkeley.edu<br>
+                Charlie Herbert - charlie_herbert@berkeley.edu<br>
+                Jeffrey Fang - jxuanfang@berkeley.edu<br>
+                Sophia Liu - vlissomar@berkeley.edu
+            </div>
+            
+            <h2>Problem Description:</h2>
+            <div>
+                <p>
+                    While snow can be a great artistic device in various forms of media, snow in the desired quantities isn't always readily available. 
+                    Thus, digitally simulating snow is an important problem in the field of computer generated imagery. 
+                    Current papers already offer algorithms for rendering the various visual properties of snow, including its glints and subsurface behaviors. 
+                    However, a tool combining these visual techniques with a mesh-generating accumulation simulation isn't readily available. 
+                    Our project will provide a good solution to this problem for smaller studios without access to more expensive industry software.
+                </p>
+                <p>
+                The two main challenges of this project will be implementing the necessary rendering techniques and bridging the gap between the rendering pipeline and the mesh-generating accumulation process. 
+                The papers included in our references offer solutions for the rendering techniques, though implementation is likely to be a challenge simply due to their technical nature. 
+                The second problem arises from the fact that our mesh generation techniques can't produce a matching UV mapping. 
+                Therefore, any visual techniques we wish to use must function under this restriction. 
+                While the paper by Yan et al. provided on the course website for glint rendering doesn't work without a UV map, a paper by Kemppinen et al. does.
+                The solution from this paper still requires the implementation of triplanar mapping, though we believe this is a feasible integration method thanks to online resources on the topic.
+                </p>
+                <p>
+                Mesh generation for snow accumulation may pose a challenge as well, though we have planned out a general approach for this side of the project as well.
+                The accumulation process will use raycasts against the scene to determine where snow falls.
+                Then, a signed distance field (SDF) will be updated to add a 'puddle' of snow to the scene.
+                The SDF will then be meshed using surface nets.
+                </p>
+            </div>
+            <h2>Goals and Deliverables:</h2>
+            <div>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                      <tr>
+                        <td style="text-align: center;">
+                          <img src="../imgs/snow_accumulation_reference.png" width="400px"/>
+                          <figcaption><i>Snow accumulation concept,<br>
+                                    Blender</i></figcaption>
+                        </td>
+                        <td style="text-align: center;">
+                          <img src="../imgs/snow_shader_reference.jpg" width="400px"/>
+                          <figcaption><i>Snow shader reference,<br>
+                                    Jarrod Hasenj&auml;ger</i></figcaption>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="text-align: center;">
+                          <img src="../imgs/houdini_snow_mesh_02.jpg" width="400px"/>
+                          <figcaption><i>Snow mesh generation,<br>
+                                    Houdini</i></figcaption>
+                        </td>
+                        <td style="text-align: center;">
+                          <img src="../imgs/snow_trees_cc0.jpg" width="400px"/>
+                          <figcaption><i>Real snow accumulation on trees,<br>
+                                    Glints from sunlight</i></figcaption>
+                        </td>
+                      </tr>
+                    </table>
+                </div>
+            </div>
+            <p>
+                Our basic goals for the project are to implement glint rendering and snow mesh-generation. 
+                These will be presented as a demo in which the user can load scenes, adjust snowfall parameters, and generate an accumulated snowfall mesh rendered using the specified techniques. 
+                Without this, the project will not be considered successful. 
+                For glint rendering, we'll be following the work of Kemppinen et al, which should provide us with sufficient details to produce an implementation in a reasonable timeframe. 
+                The goal of this part of the visual system is to imitate the 'sparkle' of snow under direct sunlight, and will be measured against reference images of real snow. 
+                Note that this comparison will only focus on the highlights of snow in direct light, as, without subsurface effects, the rendered snow will look noticeably artificial.
+            </p>
+            <p>
+                For the physical simulation aspect, we'll start with a basic implementation that simulates snowfall and uses SDFs for meshing the snow accumulation, as described in the 'Problem Description' section. 
+                The goal for this part of the project is to produce results similar to the bunny example pictured above. 
+                The snow in this example was sculpted by hand in Blender, though the results of our project would be automatically generated for a given scene and snowfall settings. 
+                While we don't expect to produce fully realistic accumulation with this simulation, like the tree example above, we hope to produce results roughly matching that of the hand-sculpted example.
+            </p>
+            <p>
+                One ambitious 'aspirational goal' we may pursue is to perform a full physical simulation of snow, following the work of Gissler et al. 
+                Considering the time constraints of the project, this is probably out of our reach. 
+                However, it could leverage the SDF meshing, as the output of Gissler's algorithm is an abstract particle cloud, likely requiring an extra meshing step to enable our visual effects.
+            </p>
+            <p>
+                Our second aspirational goal is to implement subsurface lighting effects for snow. 
+                This seems more reasonable than the physics simulation, as the steps for integrating this rendering technique would be more straightforward. 
+                For this part, we'd follow the work of Jensen et al, as suggested by the course website. If we're able to combine this part with the glint effects, we expect to be able to produce images similar to those of the shader reference above.
+            </p>
+            <p>
+                Setting a standard for the performance of our project is somewhat difficult at the moment, since it's hard to estimate how the constraints of the homework renderer will affect us. 
+                Snow accumulation and meshing should be doable in realtime, though glints and subsurface effects will likely take minutes per frame. 
+                While the glint paper does achieve 60fps rendering in a browser, it seems unlikely that we'll reach similar results without abandoning the homework framework.
+            </p>
+            <h2>Schedule:</h2>
+            <table>
+                <tr>
+                    <td style="text-align: center;"><h4>Week</h4></td>
+                    <td style="text-align: center;"><h4>Tasks</h4></td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"> 1 </td>
+                    <td style="text-align: left;"> Begin working on incorporating glint rendering with the homework framework.</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"> 2 </td>
+                    <td style="text-align: left;"> Prepare Milestone writeup + presentation. 
+                        Continue working on glints, consider inclusion of subsurface effects. 
+                        Aim to finish glints by the end of the week, though may run over.</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"> 3 </td>
+                    <td style="text-align: left;"> Start snow accumulation. 
+                        Work on data structures and algorithms for SDFs in parallel with ray-based snowfall simulations. 
+                        Choose simulation parameters for snowfall, work on UX/UI of the demo.</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"> 4 </td>
+                    <td style="text-align: left;"> Wrap up accumulation and remaining tasks, prepare for presentation. 
+                        Update webpage design.</td>
+                </tr>
+            </table>
+
+            <h2>Resources:</h2>
+            <div>
+                <h3>Papers/Reference Materials:</h3>
+                <div>
+                    <ul>
+                        <li>Snow Glint:<ul>
+                            <li> Overview Video: <a href="https://www.youtube.com/watch?v=j-B8ymGWlIE">www.youtube.com/watch?v=j-B8ymGWlIE</a> </li>
+                            <li> Paper: <a href="https://dl.acm.org/doi/abs/10.1145/3763282">dl.acm.org/doi/abs/10.1145/3763282 (Kemppinen et al.)</a> </li>
+                            <li> Shadertoy Code (from paper): <a href="https://www.shadertoy.com/view/tcdGDl">www.shadertoy.com/view/tcdGDl</a> <br>
+                                 Provides an implementation of glint rendering in Shadertoy, may be used as a reference for our own implementation. </li>
+                        </ul></li>
+                        <li>Snow Mesh Editing:<ul>
+                            <li> SDF Definition: <a href="https://en.wikipedia.org/wiki/Signed_distance_function">en.wikipedia.org/wiki/Signed_distance_function</a> </li>
+                            <li> Surface Net Meshing Implementation: <a href="https://0fps.net/2012/07/12/smooth-voxel-terrain-part-2/">0fps.net/2012/07/12/smooth-voxel-terrain-part-2/</a> <br>
+                                 This is the main implementation of SDF meshing we'll be following, but other sources may be used</li>
+                            <li> Houdini Reference (Non-SDF): <a href="https://www.velebny.net/houdini_snow_mesh.html">www.velebny.net/houdini_snow_mesh.html</a></li>
+                        </ul></li>
+                        <li>Snow Subsurface Effects:<ul>
+                            <li> Paper: <a href="https://graphics.stanford.edu/papers/bssrdf/bssrdf.pdf">graphics.stanford.edu/papers/bssrdf/bssrdf.pdf</a> </li>
+                            <li> Breakdown of full snow shader (glint + subsurface): <a href="https://hasenjager.artstation.com/projects/J2wBz">hasenjager.artstation.com/projects/J2wBz</a> </li>
+                        </ul></li>
+                        <li>Triplanar Mapping - Various code examples, for Unity:<ul>
+                            <li> Martin Palko: <a href="https://www.martinpalko.com/triplanar-mapping/">www.martinpalko.com/triplanar-mapping/</a> </li>
+                            <li> Ben Golus: <a href="https://bgolus.medium.com/normal-mapping-for-a-triplanar-shader-10bf39dca05a">bgolus.medium.com/normal-mapping-for-a-triplanar-shader-10bf39dca05a</a> </li>
+                            <li> Catlike Coding: <a href="https://catlikecoding.com/unity/tutorials/advanced-rendering/triplanar-mapping/">catlikecoding.com/unity/tutorials/advanced-rendering/triplanar-mapping/</a> </li>
+                        </ul></li>
+                        <li>Snow Physics:<ul>
+                            <li> Gissler et al: <a href="https://cg.informatik.uni-freiburg.de/publications/2020_SIGGRAPH_snow_v1.pdf">cg.informatik.uni-freiburg.de/publications/2020_SIGGRAPH_snow_v1.pdf</a> </li>
+                        </ul></li>
+                    </ul>
+                <h3>Hardware/Software:</h3>
+                <div>
+                    <ul>
+                        <li>Personal computers <ul>
+                            <li>ex: (Charlie) Windows 11, i5-13600KF processor (3.50 GHz/14 Core), RTX 4060, 32 GB DDR5 Memory.</li>
+                        </ul></li>
+                        <li>Implementation based on HW3 ray tracer: <a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/">cs184.eecs.berkeley.edu/sp26/hw/hw3/</a></li>
+                        <li>AI Tools - unsure of exact models that will be used, may include Claude and Copilot</li>
+                        <li>Soda hall servers - potentially for long renders of animated snow accumulation</li>
+                    </ul>
+                </div>
+            </div>
+		</div>
+	</body>
+</html>

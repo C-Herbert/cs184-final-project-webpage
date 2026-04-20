@@ -1,0 +1,93 @@
+<html>
+	<head>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+		<style>
+			h1 {
+				text-align: center;
+			}
+
+			.container {
+				margin: 0 auto;
+				padding: 60px 20%;
+			}
+
+			figure {
+				text-align: center;
+			}
+
+			img {
+				display: inline-block;
+			}
+
+			body {
+				font-family: 'Inter', sans-serif;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+		    <h1>Snowfall: Rendering and Accumulation</h1>
+		    <div style="text-align: center;">Names: Allena Oglivie, Charlie Herbert, Jeffrey Fang, Sophia Liu</div>
+
+		    <br>
+		    Link to webpage: <a href="https://c-herbert.github.io/cs184-final-project-webpage/">c-herbert.github.io/cs184-final-project-webpage/</a>
+		    <br>
+		    Link to slides: <a href="https://docs.google.com/presentation/d/13FGG_jqmxaxrt1kSBraTXEk3Pc-tXTIEnO_ncHN42v4/edit?usp=sharing ">docs.google.com/presentation/d/13FGG_jqmxaxrt1kSBraTXEk3Pc-tXTIEnO_ncHN42v4/edit?usp=sharing </a>
+            <br>
+		    Link to video: <a href="https://c-herbert.github.io/cs184-final-project-webpage/">TODO</a>
+            <h2>Progress Report:</h2>
+            <p>
+                So far, the main feature we've worked on is microfacet rendering. 
+                The renderer we built in homework 3 only supports diffuse Lambertian BSDFs, which is insufficient for the glint algorithm we'll be using. 
+                Instead, we needed a BSDF that follows the microfacet model presented in Walter et al. 
+                While the framework from assignment 3-2 of the 2020 version of the course provides an implementation of the 'G' (self-shadowing) term, the 'F' (Fresnel) and 'D' (normal-distribution) calculations were up to us. 
+                For the most part, we directly used the equations from Walter et al, adapting some of the advice from the old homework assignment as appropriate.
+            </p>
+            <p>
+                We've also made some progress with implementing the glint algorithm from Kemppinen et al. 
+                First, we have the Beckmann-to-disk function, which takes a Beckmann-distributed normal and converts it to a 2D, uniformly distributed point on a unit disk. 
+                This transformation is needed for the rest of the algorithm, and deriving the necessary equations proved to be a small, though notable hurdle.
+                 With this in place, implementing ray-differentials seems to be the next roadblock regarding the glint algorithm.
+            </p>
+            <p>
+                On the meshing and SDF side of things, most of our efforts were spent on getting everyone up to speed on the plan for what data types and techniques will be used to produce the snow accumulation mesh. 
+                Per the plan, we haven't begun the implementation for this side of the project yet, though we're hopeful that, with better coordination, it will go more smoothly than the glints.
+            </p>
+            <p>
+                Seeing as the pace has been slower than expected, it seems unlikely that we'll get to subsurface effects or physical simulation. 
+                The existing tasks will likely take the remainder of our time, thus we've modified the schedule to exclude these aspirational goals. 
+                Our next steps will be adding ray differentials, followed by triplanner UV mapping, and SDF meshing.
+            </p>    
+
+            <h2>Updated Schedule:</h2>
+            <table>
+                <tr>
+                    <td style="text-align: center;"><h4>Week</h4></td>
+                    <td style="text-align: center;"><h4>Tasks</h4></td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"> 1 </td>
+                    <td style="text-align: left;"> Begin working on incorporating glint rendering with the homework framework.</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"> 2 </td>
+                    <td style="text-align: left;"> Prepare Milestone writeup + presentation. 
+                        Continue working on glints, plan SDF implementation</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"> 3 </td>
+                    <td style="text-align: left;"> Start snow accumulation. 
+                        Finish glints.
+                        Work on data structures and algorithms for SDFs in parallel with ray-based snowfall simulations. 
+                        Choose simulation parameters for snowfall, work on UX/UI of the demo.</td>
+                </tr>
+                <tr>
+                    <td style="text-align: center;"> 4 </td>
+                    <td style="text-align: left;"> Wrap up accumulation and remaining tasks, prepare for presentation. 
+                        Update webpage design.</td>
+                </tr>
+            </table>
+		</div>
+	</body>
+</html>
