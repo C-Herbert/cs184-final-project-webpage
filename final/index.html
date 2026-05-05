@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Snowfall: Rendering and Accumulation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default"></script>
+    <style>
+        :root {
+            --white:       #ffffff;
+            --off-white:   #f8fafc;
+            --ice:         #daeaf5;
+            --pale-blue:   #b8d9ef;
+            --mid-blue:    #7ab3d4;
+            --deep-blue:   #3a7fa8;
+            --text:        #1e2b35;
+            --text-mid:    #4a6070;
+            --text-dim:    #8ba5b5;
+            --border:      #d0e5f0;
+            --mono:        'DM Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--white);
+            color: var(--text);
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 16px;
+            line-height: 1.8;
+            overflow-x: hidden;
+        }
+
+        /* ── SNOW HALFTONE SIDES ── */
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            width: 180px;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::before {
+            left: 0;
+            background:
+                    radial-gradient(ellipse 160px 120px at 40px calc(100vh - 10px), rgba(184,217,239,0.55) 0%, transparent 100%),
+                    radial-gradient(ellipse 100px 60px at 20px calc(100vh - 5px), rgba(218,234,245,0.7) 0%, transparent 100%),
+                    linear-gradient(to right, rgba(218,234,245,0.28) 0%, rgba(218,234,245,0.06) 60%, transparent 100%);
+            background-repeat: no-repeat, no-repeat, no-repeat;
+        }
+
+        body::after {
+            right: 0;
+            background:
+                    radial-gradient(ellipse 160px 120px at 140px calc(100vh - 10px), rgba(184,217,239,0.55) 0%, transparent 100%),
+                    radial-gradient(ellipse 100px 60px at 160px calc(100vh - 5px), rgba(218,234,245,0.7) 0%, transparent 100%),
+                    linear-gradient(to left, rgba(218,234,245,0.28) 0%, rgba(218,234,245,0.06) 60%, transparent 100%);
+            background-repeat: no-repeat, no-repeat, no-repeat;
+        }
+
+        /* ── LAYOUT ── */
+        .page {
+            position: relative;
+            z-index: 1;
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* ── HEADER ── */
+        header {
+            padding: 5rem 0 3rem;
+            border-bottom: 1.5px solid var(--border);
+            margin-bottom: 3rem;
+        }
+
+        .header-label {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--mid-blue);
+            margin-bottom: 1.2rem;
+        }
+
+        h1.title {
+            font-family: 'Lora', Georgia, serif;
+            font-size: clamp(2.2rem, 5vw, 3.4rem);
+            font-weight: 600;
+            line-height: 1.15;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        h1.title em {
+            font-style: italic;
+            color: var(--deep-blue);
+        }
+
+        .subtitle {
+            font-family: 'Lora', serif;
+            font-style: italic;
+            font-size: 1.05rem;
+            color: var(--text-mid);
+            margin-bottom: 2rem;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .meta-row a {
+            color: var(--deep-blue);
+            text-decoration: none;
+            border-bottom: 1px solid var(--pale-blue);
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .meta-row a:hover {
+            color: var(--mid-blue);
+            border-color: var(--mid-blue);
+        }
+
+        /* ── VIDEO EMBED ── */
+        .video-block {
+            margin: 2.5rem 0;
+            border: 1.5px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            background: var(--off-white);
+        }
+
+        .video-block iframe,
+        .video-block video {
+            width: 100%;
+            display: block;
+            aspect-ratio: 16/9;
+        }
+
+        .video-caption {
+            padding: 0.75rem 1rem;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ── SECTION STRUCTURE ── */
+        section {
+            padding: 3rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        section:last-child {
+            border-bottom: none;
+        }
+
+        .section-tag {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--mid-blue);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-tag::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        h2 {
+            font-family: 'Lora', serif;
+            font-size: 1.7rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 1.2rem;
+            line-height: 1.3;
+        }
+
+        h3 {
+            font-family: 'Lora', serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+            font-style: italic;
+            color: var(--deep-blue);
+            margin: 2rem 0 0.6rem;
+        }
+
+        p {
+            margin-bottom: 1.1rem;
+            color: var(--text);
+        }
+
+        /* ── IMAGE AREAS ── */
+        .img-slot {
+            background: var(--off-white);
+            border: 1.5px dashed var(--pale-blue);
+            border-radius: 6px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1.5rem 0;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+        }
+
+        .img-slot img {
+            max-width: 100%;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto 0.75rem;
+        }
+
+        .img-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+            margin: 1.5rem 0;
+        }
+
+        .img-grid .img-slot {
+            margin: 0;
+        }
+
+        figure {
+            margin: 1.5rem 0;
+        }
+
+        figure img {
+            width: 100%;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        figcaption {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-align: center;
+            margin-top: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── CONTRIBUTOR CARDS ── */
+        .contrib-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .contrib-card {
+            background: var(--off-white);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.25rem 1.4rem;
+            border-top: 3px solid var(--pale-blue);
+        }
+
+        .contrib-name {
+            font-family: 'Lora', serif;
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text);
+            margin-bottom: 0.2rem;
+        }
+
+        .contrib-email {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+        }
+
+        .contrib-body {
+            font-size: 0.9rem;
+            color: var(--text-mid);
+            line-height: 1.6;
+        }
+
+        /* ── REFERENCES ── */
+        ol.refs {
+            counter-reset: ref;
+            list-style: none;
+            padding: 0;
+        }
+
+        ol.refs li {
+            counter-increment: ref;
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-mid);
+        }
+
+        ol.refs li::before {
+            content: '[' counter(ref) ']';
+            position: absolute;
+            left: 0;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--mid-blue);
+            top: 0.15rem;
+        }
+
+        ol.refs a {
+            color: var(--deep-blue);
+            text-decoration: none;
+            border-bottom: 1px solid var(--pale-blue);
+        }
+
+        /* ── INLINE CODE ── */
+        code {
+            font-family: var(--mono);
+            font-size: 0.82em;
+            background: var(--ice);
+            color: var(--deep-blue);
+            padding: 0.1em 0.4em;
+            border-radius: 3px;
+        }
+
+        /* ── CALLOUT ── */
+        .callout {
+            background: var(--off-white);
+            border-left: 3px solid var(--mid-blue);
+            padding: 1rem 1.4rem;
+            margin: 1.5rem 0;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .callout p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--text-mid);
+        }
+
+        /* ── FOOTER ── */
+        footer {
+            padding: 3rem 0;
+            text-align: center;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+
+        /* ── SNOWFLAKE DIVIDER ── */
+        .snow-divider {
+            text-align: center;
+            color: var(--pale-blue);
+            font-size: 1rem;
+            letter-spacing: 1rem;
+            margin: 0.5rem 0;
+            user-select: none;
+        }
+
+        @media (max-width: 640px) {
+            body::before, body::after { width: 60px; }
+            .img-grid { grid-template-columns: 1fr; }
+            .contrib-grid { grid-template-columns: 1fr; }
+            .meta-row { gap: 1rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <!-- ── HEADER ── -->
+    <header>
+        <p class="header-label">CS184 / 284A &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; Final Project &nbsp;·&nbsp; Group 11</p>
+        <h1 class="title">Snowfall: <em>Rendering</em><br>and Accumulation</h1>
+        <p class="subtitle">Physically-based snow rendering with SDF-generated accumulation meshes</p>
+        <div class="meta-row">
+            <span>Allena Ogilvie &nbsp;·&nbsp; Charlie Herbert &nbsp;·&nbsp; Jeffrey Fang &nbsp;·&nbsp; Sophia Liu</span>
+            <span><a href="https://c-herbert.github.io/cs184-final-project-webpage/">Webpage</a></span>
+            <span><a href="https://github.com/C-Herbert/cs184-final-project-webpage">GitHub</a></span>
+            <span><a href="https://docs.google.com/presentation/d/1FKrr1-YiSqtk8pXSkVqmQtVrtL8MNTFXNTWXf8k96SU/edit?usp=sharing">Final Slides</a></span>
+        </div>
+    </header>
+
+    <!-- ── VIDEO ── -->
+    <section>
+        <p class="section-tag">00 &nbsp; Demo</p>
+        <h2>Project Video</h2>
+        <p>The video below showcase our technical approach</p>
+        <div class="video-block">
+            <!-- Various src links-->
+            <!-- For Google Drive: use embed format https://drive.google.com/file/d/FILE_ID/preview -->
+            <!-- For YouTube: use https://www.youtube.com/embed/VIDEO_ID -->
+            <iframe src="https://drive.google.com/file/d/1PZQsKUqagMe6tg_psyDVwAV5_5Fy3xzL/view?usp=sharing" allowfullscreen></iframe>
+        </div>
+    </section>
+
+    <!-- ── ABSTRACT ── -->
+    <section>
+        <p class="section-tag">01 &nbsp; Abstract</p>
+        <h2>Summary</h2>
+        <p>
+            This project combines rendering techniques with mesh generation to recreate the visual effects of snow accumulation within an arbitrary scene. To approximate the visual effects of snow, we implemented a custom <code>SnowBSDF</code> that blends a Lambertian diffuse base with Beckmann importance sampling, sampled via triplanar texture mapping to work on UV-less SDF-generated meshes. To model the buildup of snow, we used signed distance fields with a Surface Nets algorithm, placing a realistic layer of textured snow on any mesh scene.
+        </p>
+        <p>
+            Our initial goal was to implement the full Kemppinen et al. glint algorithm, which required differential rays, a custom <code>DiffRay</code> type, and a 2D Jacobian for UV footprint computation. While the differential ray infrastructure was completed, the full glint algorithm proved too complex to port from its GLSL shader origin within the project timeline. The final snow material instead achieves its sparkle through Beckmann NDF importance sampling layered on top of a diffuse texture, producing a convincing snow appearance without the full glint pipeline.
+        </p>
+    </section>
+
+    <!-- ── TECHNICAL APPROACH ── -->
+    <section>
+        <p class="section-tag">02 &nbsp; Technical Approach</p>
+        <h2>How We Built It</h2>
+
+        <h3>Microfacet BSDF Foundation — Charlie Herbert</h3>
+        <p>
+            The HW3 renderer only supports Lambertian BSDFs, which is insufficient for snow's visual properties. We extended it with a full microfacet BSDF based on Walter et al., implementing the Beckmann normal distribution function, a dielectric Fresnel term, and the Smith-Beckmann geometric attenuation term. This formed the foundation that all later snow material work was built on top of.
+        </p>
+
+        <h3>Glint Model Attempt — Kemppinen et al. — Charlie Herbert · Allena Ogilvie</h3>
+        <p>
+            Our initial approach followed Kemppinen et al.'s glint algorithm, which converts a microfacet NDF into a spatially-varying glinty distribution using a mip hierarchy over a 2D disk parameterization of the hemisphere. The algorithm requires a UV-space Jacobian at each hit point, which in turn requires differential rays propagated through the full path. We implemented this infrastructure using Igehy 1999's equations, creating a <code>DiffRay</code> struct that tracks screen-space footprint differentials through transfer and reflection.
+        </p>
+        <p>
+            The conversion from the Shadertoy GLSL implementation to our CPU pathtracer proved harder than anticipated. Debugging revealed incorrect normal computation in the differential ray reflection function, which wasted significant time. Ultimately the full Kemppinen implementation was cut. We found that Beckmann importance sampling alone produced a visually convincing glint-like effect for many cases, though with noisier specular artifacts in complex lighting.
+        </p>
+
+        <!-- Image slot for glint comparison -->
+        <div class="img-grid">
+            <div class="img-slot">
+                <!-- <img src="imgs/glint_beckmann.png" alt="Beckmann glints"/> -->
+                Insert image: Beckmann glints render
+            </div>
+            <div class="img-slot">
+                <!-- <img src="imgs/microfacet_only.png" alt="Microfacet only"/> -->
+                Insert image: Pure microfacet render
+            </div>
+        </div>
+
+        <h3>Snow BSDF Design — Charlie Herbert</h3>
+        <p>
+            A pure microfacet model renders snow as dark and metallic. A pure Lambertian model produces white concrete. Real snow is predominantly diffuse, with occasional sharp specular highlights from individual crystals. Our <code>SnowBSDF::f()</code> blends a Lambertian diffuse base with a Beckmann specular component, scaled by tunable weights. The Fresnel term uses a dielectric formulation with snow's index of refraction (1.31), reflecting the fact that individual ice crystals are optically transparent even though the bulk material scatters diffusely.
+        </p>
+
+        <!-- Image slot: before/after -->
+        <div class="img-grid">
+            <div class="img-slot">
+                <!-- <img src="imgs/before_diffuse.png" alt="Before diffuse blend"/> -->
+                Insert image: Before — dark metallic spheres
+            </div>
+            <div class="img-slot">
+                <!-- <img src="imgs/after_diffuse.png" alt="After diffuse blend"/> -->
+                Insert image: After — white snow material
+            </div>
+        </div>
+
+        <h3>Triplanar Mapping + Seam Fix — Charlie Herbert · Allena Ogilvie</h3>
+        <p>
+            SDF-generated meshes carry no UV coordinates. Both the Kemppinen algorithm and the texture-based BSDF require UV positions and Jacobians at hit points. We solved this with triplanar mapping: projecting the world-space hit point onto three axis-aligned planes and blending results by surface normal alignment. For the triplanar equations, we adapted Martin Palko's Unity shader code to our C++ framework, adding coordinate tiling via modular rescaling.
+        </p>
+        <p>
+            The initial linear blend weights created hard diamond-shaped seam artifacts where two projection axes shared similar alignment. The fix was to raise each axis's weight to the 4th power before normalizing across all three. This sharpens the per-axis falloff so that one axis dominates cleanly near its aligned direction, eliminating seams without requiring additional sampling.
+        </p>
+
+        <!-- Image slot: seam comparison -->
+        <div class="img-grid">
+            <div class="img-slot">
+                <!-- <img src="imgs/seams_before.png" alt="With seams"/> -->
+                Insert image: Crosshatch seam artifact
+            </div>
+            <div class="img-slot">
+                <!-- <img src="imgs/seams_after.png" alt="Without seams"/> -->
+                Insert image: Seams fixed
+            </div>
+        </div>
+
+        <h3>Ray Differentials — Charlie Herbert</h3>
+        <p>
+            The Kemppinen algorithm and triplanar Jacobian both require screen-space differentials propagated through ray bounces. We implemented this using Igehy 1999's equations, creating a <code>DiffRay</code> struct that extends the base <code>Ray</code> with four differential vectors: <code>do_dx</code>, <code>dd_dx</code>, <code>do_dy</code>, <code>dd_dy</code>, and a <code>last_normal</code> for triplanar weight computation. The camera generates initial differentials from the camera-to-world matrix. Each bounce calls <code>transfer()</code> and <code>reflect()</code> to propagate them through the scene, allowing the UV Jacobian to be reconstructed at any hit point as a 2x2 matrix from the differential origin offsets.
+        </p>
+
+        <h3>SDF Snow Accumulation — Sophia Liu · Jeffrey Fang</h3>
+        <p>
+            To simulate snow accumulation, we cast rays downward into the scene. At each hit point, we deposit a snow blob by creating an ellipsoid SDF and merging it with the existing voxel grid by taking the minimum value at each voxel. Negative SDF values indicate the interior of the snow surface; the isosurface at zero traces the snow boundary. The Surface Nets algorithm then converts this voxel grid into a triangle mesh by finding sign changes across voxel edges and creating quads between the four surrounding surface vertices.
+        </p>
+        <p>
+            Surface normals are computed from the SDF gradient using bilinear interpolation across the 12 voxel edges at each vertex, giving smooth normals without triangle-level discontinuities. A key tuning parameter was the decay rate of blob size with surface slope: too slow produced unrealistic overhanging snow; too fast produced disconnected chunky patches. A linear decay with the correct voxel granularity produced smooth, continuous accumulation.
+        </p>
+
+        <!-- Image slot: SDF mesh -->
+        <div class="img-slot">
+            <!-- <img src="imgs/sdf_mesh_preview.png" alt="SDF mesh GL preview"/> -->
+            Insert image: SDF surface nets mesh preview
+        </div>
+
+        <h3>Footprint SDF Carving — Allena Ogilvie</h3>
+        <p>
+            The proposed footprint carving was implemented using SDF subtraction. It is negating ellipsoid SDFs and merging with <code>max</code> instead of <code>min</code> to carve depressions into the snow surface. The geometry of the depression itself worked, having a boot and a foot shape that were distinguishable. Also, the carve depth was controllable through the Y radius of each ellipsoid component. Although sound in theory, the visual results had two main problems that made them unconvincing. The first is the coordinate system depth variation. A real footprint in the show is not a uniform flat depression. The heel sinks deepest, the arch barely touches, the ball of the foot creates a secondary ridge, and individual toes leave distinct, rounded pockets at varying depths. Our SDF carving used simple ellipsoidal unions, which produce a smooth bowl-shaped subtraction at each component of the render. There was no way to uncode the non-uniform vertical pressure profile of a real footstep without significantly more complex SDF composition. This would require a drastic amount of time to tune correctly and more communication of the development progress.
+        </p>
+        <p>
+            Secondly, the carving broke the snow material illusion. A render of the snow footprint is more akin to a footprint cutout in dough, not in snow.  The current <code>f()</code> function samples a snow albedo texture via triplanar mapping, blending across three projection axes using power-of-4 weights. The depression creates a hard geometric boundary where the carved region meets the undisturbed surface. Without spatially varying the albedo sample or the specular contribution based on how compressed it is at each hit point. This would require reading each SDF value at dr_in→o during shading. As a result, the footprint reads as a geometric hole rather than a compression in the snow material. The material looks identical inside and outside the footprint, which breaks the illusion entirely. In real snow, a compression has a different crystal structure from the noncompressed surrounding area. The compressed snow is denser, icier, and reflects light differently from the fresh powdery snow. Given the time remaining and priority of getting a high-quality baseline snow accumulation render correctly, the footprint was cut from the final deliverable.
+        </p>
+
+        <!-- Image slot: footprint -->
+        <div class="img-slot">
+            <!-- <img src="imgs/footprint_render.png" alt="Footprint carving render"/> -->
+            Insert image: Footprint SDF carving render
+        </div>
+
+        <h3>Problems Encountered</h3>
+        <p>
+            Communication and pacing were the biggest coordination challenges. Two separate implementations of the snow accumulation algorithm were developed in parallel before the team converged, costing significant time. A more granular roadmap with individually delegated intermediate deadlines would have substantially helped. On the technical side, the incorrect normal computation in <code>reflect_from_next_dir</code> in the differential ray implementation caused difficult-to-trace visual artifacts that delayed the glint work by over a week. Earlier visual testing would have surfaced this faster -- a noisy 16-sample render identifies most shading bugs far more efficiently than code review alone.
+        </p>
+    </section>
+
+    <!-- ── RESULTS ── -->
+    <section>
+        <p class="section-tag">03 &nbsp; Results</p>
+        <h2>Final Renders</h2>
+
+        <div class="img-slot">
+            <!-- <img src="imgs/hero_render.png" alt="Hero render"/> -->
+            Insert image: Hero render — best final snow image
+        </div>
+
+        <div class="img-grid">
+            <div class="img-slot">
+                <!-- <img src="imgs/result_1.png"/> -->
+                Insert image: Snow material on spheres
+            </div>
+            <div class="img-slot">
+                <!-- <img src="imgs/result_2.png"/> -->
+                Insert image: Snow accumulation mesh render
+            </div>
+        </div>
+
+        <div class="img-grid">
+            <div class="img-slot">
+                <!-- <img src="imgs/result_3.png"/> -->
+                Insert image: Triplanar texture result
+            </div>
+            <div class="img-slot">
+                <!-- <img src="imgs/result_4.png"/> -->
+                Insert image: Additional result
+            </div>
+        </div>
+    </section>
+
+    <!-- ── CONTRIBUTIONS ── -->
+    <section>
+        <p class="section-tag">04 &nbsp; Contributions</p>
+        <h2>Team</h2>
+        <div class="contrib-grid">
+            <div class="contrib-card">
+                <p class="contrib-name">Jeffrey Fang</p>
+                <p class="contrib-email">jxuanfang@berkeley.edu</p>
+                <p class="contrib-body">Surface Nets implementation. Applying snow accumulation to arbitrary scenes via ray-based deposition. Tuning snow overhang decay parameters for continuous mesh generation.</p>
+            </div>
+            <div class="contrib-card">
+                <p class="contrib-name">Charlie Herbert</p>
+                <p class="contrib-email">charlie_herbert@berkeley.edu</p>
+                <p class="contrib-body">Microfacet BSDF setup. Differential ray infrastructure (DiffRay struct, transfer, reflect). Triplanar UV mapping. Attempted Kemppinen glint algorithm implementation.</p>
+            </div>
+
+            <div class="contrib-card">
+                <p class="contrib-name">Sophia Liu</p>
+                <p class="contrib-email">vlissomar@berkeley.edu</p>
+                <p class="contrib-body">Surface Nets implementation. Integration of snow accumulation pipeline with the HW3 framework. SDF mesh generation and rendering.</p>
+            </div>
+            <div class="contrib-card">
+                <p class="contrib-name">Allena Ogilvie</p>
+                <p class="contrib-email">ogfayer@berkeley.edu</p>
+                <p class="contrib-body">Snow BSDF design and diffuse blend implementation. Triplanar seam fix via power-of-4 weight sharpening. Footprint SDF carving implementation and technical analysis of why it was cut from the final deliverable.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── REFERENCES ── -->
+    <section>
+        <p class="section-tag">05 &nbsp; References</p>
+        <h2>References</h2>
+        <ol class="refs">
+            <li>Kemppinen et al. 2025 — <a href="https://dl.acm.org/doi/10.1145/3763282">Real-Time Glinty Appearance Rendering with Distributed Binomial Laws on Anisotropic Grids</a></li>
+            <li>Homan Igehy 1999 — <a href="https://graphics.stanford.edu/papers/trd/trd.pdf">Tracing Ray Differentials</a></li>
+            <li>Walter et al. 2007 — <a href="https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf">Microfacet Models for Refraction through Rough Surfaces</a></li>
+            <li>Martin Palko — <a href="https://www.martinpalko.com/triplanar-mapping/">Triplanar Mapping</a></li>
+            <li>DreamCat Games — <a href="https://bonsairobo.medium.com/smooth-voxel-mapping-a-technical-deep-dive-on-real-time-surface-nets-and-texturing-ef06d0f8ca14">Smooth Voxel Mapping: Surface Nets and Texturing</a></li>
+            <li>CS184 Project 3 — <a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/">HW3 Pathtracer specification</a></li>
+        </ol>
+    </section>
+
+    <div class="snow-divider">❄ &nbsp; ❄ &nbsp; ❄</div>
+
+    <footer>
+        CS184 / 284A &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; Group 11 &nbsp;·&nbsp; UC Berkeley
+    </footer>
+
+</div>
+</body>
+</html>
