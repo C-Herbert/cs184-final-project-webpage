@@ -417,10 +417,7 @@
         <p class="section-tag">01 &nbsp; Abstract</p>
         <h2>Summary</h2>
         <p>
-            This project combines rendering techniques with mesh generation to recreate the visual effects of snow accumulation within an arbitrary scene. To approximate the visual effects of snow, we implemented a custom <code>SnowBSDF</code> that blends a Lambertian diffuse base with Beckmann importance sampling, sampled via triplanar texture mapping to work on UV-less SDF-generated meshes. To model the buildup of snow, we used signed distance fields with a Surface Nets algorithm, placing a realistic layer of textured snow on any mesh scene.
-        </p>
-        <p>
-            Our initial goal was to implement the full Kemppinen et al. glint algorithm, which required differential rays, a custom <code>DiffRay</code> type, and a 2D Jacobian for UV footprint computation. While the differential ray infrastructure was completed, the full glint algorithm proved too complex to port from its GLSL shader origin within the project timeline. The final snow material instead achieves its sparkle through Beckmann NDF importance sampling layered on top of a diffuse texture, producing a convincing snow appearance without the full glint pipeline.
+            This project combines rendering techniques with mesh generation to recreate the visual effects of snow accumulation within an arbitrary scene. To approximate the visual effects of snow, such as glints and subsurface effects, we used a triplanar texture mapping, which solved issues regarding the lack of UV mappings in our generated meshes. To model the buildup of snow in a scene, we used signed distance fields with a surface nets algorithm. Together, these effects can place a layer of glinty snow on any mesh scene.
         </p>
     </section>
 
@@ -431,84 +428,42 @@
 
         <h3>Microfacet BSDF Foundation — Charlie Herbert</h3>
         <p>
-            The HW3 renderer only supports Lambertian BSDFs, which is insufficient for snow's visual properties. We extended it with a full microfacet BSDF based on Walter et al., implementing the Beckmann normal distribution function, a dielectric Fresnel term, and the Smith-Beckmann geometric attenuation term. This formed the foundation that all later snow material work was built on top of.
+            Most of the project effort was initially focused on attempting to implement realistic snow glint effects, following the work of Kemppinen et al. To this end, we began by setting up a microfacet BSDF within the homework 3 framework. We used both the 2020 version of the instructions for project 3 and the work of Walter et al. as references to guide our implementation of the microfacet BSDF. These provided the necessary algorithms, as well as an outline of which functions we’d need to implement. From here, we simply implemented the normal distribution, self-shadowing, and fresnel functions. This part went fairly smoothly, though it took slightly longer than expected due to some coordination issues.
         </p>
 
-        <h3>Glint Model Attempt — Kemppinen et al. — Charlie Herbert · Allena Ogilvie</h3>
+        <h3>Glint Model Attempt — Kemppinen et al. — Charlie Herbert, Allena Ogilvie</h3>
         <p>
-            Our initial approach followed Kemppinen et al.'s glint algorithm, which converts a microfacet NDF into a spatially-varying glinty distribution using a mip hierarchy over a 2D disk parameterization of the hemisphere. The algorithm requires a UV-space Jacobian at each hit point, which in turn requires differential rays propagated through the full path. We implemented this infrastructure using Igehy 1999's equations, creating a <code>DiffRay</code> struct that tracks screen-space footprint differentials through transfer and reflection.
-        </p>
-        <p>
-            The conversion from the Shadertoy GLSL implementation to our CPU pathtracer proved harder than anticipated. Debugging revealed incorrect normal computation in the differential ray reflection function, which wasted significant time. Ultimately the full Kemppinen implementation was cut. We found that Beckmann importance sampling alone produced a visually convincing glint-like effect for many cases, though with noisier specular artifacts in complex lighting.
-        </p>
-
-        <!-- Image slot for glint comparison -->
-        <div class="img-grid">
-            <div class="img-slot">
-                <!-- <img src="imgs/glint_beckmann.png" alt="Beckmann glints"/> -->
-                Insert image: Beckmann glints render
-            </div>
-            <div class="img-slot">
-                <!-- <img src="imgs/microfacet_only.png" alt="Microfacet only"/> -->
-                Insert image: Pure microfacet render
-            </div>
-        </div>
-
-        <h3>Snow BSDF Design — Charlie Herbert</h3>
-        <p>
-            A pure microfacet model renders snow as dark and metallic. A pure Lambertian model produces white concrete. Real snow is predominantly diffuse, with occasional sharp specular highlights from individual crystals. Our <code>SnowBSDF::f()</code> blends a Lambertian diffuse base with a Beckmann specular component, scaled by tunable weights. The Fresnel term uses a dielectric formulation with snow's index of refraction (1.31), reflecting the fact that individual ice crystals are optically transparent even though the bulk material scatters diffusely.
-        </p>
-
-        <!-- Image slot: before/after -->
-        <div class="img-grid">
-            <div class="img-slot">
-                <!-- <img src="imgs/before_diffuse.png" alt="Before diffuse blend"/> -->
-                Insert image: Before — dark metallic spheres
-            </div>
-            <div class="img-slot">
-                <!-- <img src="imgs/after_diffuse.png" alt="After diffuse blend"/> -->
-                Insert image: After — white snow material
-            </div>
-        </div>
-
-        <h3>Triplanar Mapping + Seam Fix — Charlie Herbert · Allena Ogilvie</h3>
-        <p>
-            SDF-generated meshes carry no UV coordinates. Both the Kemppinen algorithm and the texture-based BSDF require UV positions and Jacobians at hit points. We solved this with triplanar mapping: projecting the world-space hit point onto three axis-aligned planes and blending results by surface normal alignment. For the triplanar equations, we adapted Martin Palko's Unity shader code to our C++ framework, adding coordinate tiling via modular rescaling.
+            The next step was to implement the glint algorithm from Kemppinen et al, which takes the normal distribution function of the microfacet renderer and converts it to a ‘glinty’ distribution. However, we needed to overhaul the HW3 solution to support differential rays for this algorithm. To do this, we used the equations found in Homan Igehy’s Tracing Ray Differentials and created our own datatype that extended the existing ray structure. Then, the HW3 pathtracer was reworked to use the new reflect and translation functions. This seemed simple at first, though later debugging revealed several small programming errors in the initial implementation, which wasted a significant amount of time later on. In particular, a custom function for reflecting a differential ray into a provided direction was found to be calculating the normal between the input and output directions incorrectly.
         </p>
         <p>
-            The initial linear blend weights created hard diamond-shaped seam artifacts where two projection axes shared similar alignment. The fix was to raise each axis's weight to the 4th power before normalizing across all three. This sharpens the per-axis falloff so that one axis dominates cleanly near its aligned direction, eliminating seams without requiring additional sampling.
-        </p>
+            Ultimately, the Kemppinen glint implementation didn’t work out. Due to a lack of group resources for debugging the glint algorithm, the end result suffered from significant visual errors. While we had chosen Kemppinen’s approach for its efficiency and seemingly straightforward implementation, the conversion from a shader program to our raytraced renderer proved too challenging given the constraints. We did find that applying just the importance sampling from the Beckmann distribution of the microfacet BSDF produced a decent ‘glinty’ look for some simple cases, though it resulted in noisy specular artifacts being scattered around the scene.
 
-        <!-- Image slot: seam comparison -->
-        <div class="img-grid">
-            <div class="img-slot">
-                <!-- <img src="imgs/seams_before.png" alt="With seams"/> -->
-                Insert image: Crosshatch seam artifact
-            </div>
-            <div class="img-slot">
-                <!-- <img src="imgs/seams_after.png" alt="Without seams"/> -->
-                Insert image: Seams fixed
-            </div>
-        </div>
-
-        <h3>Ray Differentials — Charlie Herbert</h3>
-        <p>
-            The Kemppinen algorithm and triplanar Jacobian both require screen-space differentials propagated through ray bounces. We implemented this using Igehy 1999's equations, creating a <code>DiffRay</code> struct that extends the base <code>Ray</code> with four differential vectors: <code>do_dx</code>, <code>dd_dx</code>, <code>do_dy</code>, <code>dd_dy</code>, and a <code>last_normal</code> for triplanar weight computation. The camera generates initial differentials from the camera-to-world matrix. Each bounce calls <code>transfer()</code> and <code>reflect()</code> to propagate them through the scene, allowing the UV Jacobian to be reconstructed at any hit point as a 2x2 matrix from the differential origin offsets.
-        </p>
-
-        <h3>SDF Snow Accumulation — Sophia Liu · Jeffrey Fang</h3>
-        <p>
-            To simulate snow accumulation, we cast rays downward into the scene. At each hit point, we deposit a snow blob by creating an ellipsoid SDF and merging it with the existing voxel grid by taking the minimum value at each voxel. Negative SDF values indicate the interior of the snow surface; the isosurface at zero traces the snow boundary. The Surface Nets algorithm then converts this voxel grid into a triangle mesh by finding sign changes across voxel edges and creating quads between the four surrounding surface vertices.
         </p>
         <p>
-            Surface normals are computed from the SDF gradient using bilinear interpolation across the 12 voxel edges at each vertex, giving smooth normals without triangle-level discontinuities. A key tuning parameter was the decay rate of blob size with surface slope: too slow produced unrealistic overhanging snow; too fast produced disconnected chunky patches. A linear decay with the correct voxel granularity produced smooth, continuous accumulation.
+            The lack of promising results from the Kemppinen glint BSDF prompted a late switch to a simple, texture-based snow BSDF. To do this, we used the texture data type from homework 1, copying over the ‘Texture’ class and functions for file loading. Sampling the textures was done using triplanar mapping, which had been implemented as part of the Kemppinen approach. For the triplanar equations, we adapted Martin Palko’s code for triplanar shaders in Unity to work with our framework. We did need to modify the equations to support tiling with our texture sampler, though this was easily accomplished by rounding and rescaling our world-space coordinates.
         </p>
 
-        <!-- Image slot: SDF mesh -->
-        <div class="img-slot">
-            <!-- <img src="imgs/sdf_mesh_preview.png" alt="SDF mesh GL preview"/> -->
-            Insert image: SDF surface nets mesh preview
-        </div>
+
+        <h3>SDF Design - Jeffrey Fang, Sophia Liu</h3>
+        <p>
+            To implement snow accumulation upon our scene, we used signed distance fields (SDF). The inspiration for this idea came from the work of DreamCat Games, who explained how to create smooth meshes for cubic scenes through an algorithm called Surface Nets. Essentially, a voxel grid stores an SDF at each point, indicating the closest distance to a surface, our snow, where negative values are defined to be ‘inside’ the surface. Using these, we can linearly interpolate the positions of the surface points inside each cube of 8 voxels. A surface passes between two voxels when the sign on their SDFs flip. When we find such a ‘voxel edge,’ we create a quad with the 4 surface points around the edge as shown [above? on the right] with the red lines. This quad is then split into two triangles, and added to the mesh.
+
+        </p>
+        <p>
+            In addition to finding surface vertices, the SDF also allows us to compute normals with respect to the surface. The normal of a vertex on the isosurface is simply the gradient of the SDF at this point. While this makes computation simpler, we still had to implement bilinear interpolation to calculate the gradients of points inside our voxels. By computing the change in the SDF along all 12 voxel edges, we calculate the surface normal by using a weighted average of the gradients at the corners of our voxel. Doing this allows us to apply our snow BSDF to our resulting mesh.
+
+        </p>
+        <p>
+            To actually apply this method to a given scene, we first use raycasts to determine where snow actually accumulates. Based on the surface normal of the intersecting object, we determine how much snow to “deposit” in a sphere at that location. Deposition consists of creating an SDF of a snow blob at the hit location, then merging it with our existing SDF by taking the minimum of the two values. As a result, the isosurface for the final SDF traces the outer boundary of all the snow in our scene, meaning that applying the Surface Nets Algorithm we implemented gives a full triangle mesh for our snow.
+        </p>
+        <p>
+            One important parameter we varied in our testing was how the size of the snow decayed with increasing slope. If the size did not decay fast enough, we would get unrealistic overhangs of snow off of objects. However, if it decayed too fast, the snow spheres were not connecting to form a continuous mesh, becoming chunky instead of smooth. The correct granularity of our voxels with a linear decay gave us the realistic rendering of snow landing on objects.
+        </p>
+
+        <h3>Problems Encountered</h3>
+        <p>
+            Communication and pacing were the biggest coordination challenges. Two separate implementations of the snow accumulation algorithm were developed in parallel before the team converged, costing significant time. A more granular roadmap with individually delegated intermediate deadlines would have substantially helped. On the technical side, the incorrect normal computation in <code>reflect_from_next_dir</code> in the differential ray implementation caused difficult-to-trace visual artifacts that delayed the glint work by over a week. Earlier visual testing would have surfaced this faster -- a noisy 16-sample render identifies most shading bugs far more efficiently than code review alone.
+        </p>
 
         <h3>Footprint SDF Carving — Allena Ogilvie</h3>
         <p>
@@ -524,10 +479,6 @@
             Insert image: Footprint SDF carving render
         </div>
 
-        <h3>Problems Encountered</h3>
-        <p>
-            Communication and pacing were the biggest coordination challenges. Two separate implementations of the snow accumulation algorithm were developed in parallel before the team converged, costing significant time. A more granular roadmap with individually delegated intermediate deadlines would have substantially helped. On the technical side, the incorrect normal computation in <code>reflect_from_next_dir</code> in the differential ray implementation caused difficult-to-trace visual artifacts that delayed the glint work by over a week. Earlier visual testing would have surfaced this faster -- a noisy 16-sample render identifies most shading bugs far more efficiently than code review alone.
-        </p>
     </section>
 
     <!-- ── RESULTS ── -->
